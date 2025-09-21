@@ -1,0 +1,193 @@
+import sqlite3
+
+def create_connection(db_file):
+    """ Create a database connection to the SQLite database """
+    conn = None
+    try:
+        conn = sqlite3.connect(db_file)
+        print(f"Connected to {db_file}, SQLite version: {sqlite3.version}")
+        return conn
+    except sqlite3.Error as e:
+        print(e)
+    return conn
+
+def create_table(conn, create_table_sql):
+    """ Create a table from the create_table_sql statement """
+    try:
+        c = conn.cursor()
+        c.execute(create_table_sql)
+    except sqlite3.Error as e:
+        print(e)
+
+def setup_database():
+    database = "hospital.db"
+
+    sql_create_patients_table = """ CREATE TABLE IF NOT EXISTS patients (
+                                        patient_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                        name TEXT NOT NULL,
+                                        age INTEGER NOT NULL,
+                                        gender TEXT,
+                                        contact TEXT
+                                    ); """
+
+    sql_create_doctors_table = """ CREATE TABLE IF NOT EXISTS doctors (
+                                       doctor_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                       name TEXT NOT NULL,
+                                       specialization TEXT NOT NULL,
+                                       contact TEXT
+                                   ); """
+
+    sql_create_appointments_table = """ CREATE TABLE IF NOT EXISTS appointments (
+                                            appointment_id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                            patient_id INTEGER,
+                                            doctor_id INTEGER,
+                                            appointment_date TEXT NOT NULL,
+                                            reason TEXT,
+                                            FOREIGN KEY (patient_id) REFERENCES patients (patient_id),
+                                            FOREIGN KEY (doctor_id) REFERENCES doctors (doctor_id)
+                                        ); """
+    
+    # Create database connection
+    conn = create_connection(database)
+
+    # Create tables
+    if conn is not None:
+        create_table(conn, sql_create_patients_table)
+        create_table(conn, sql_create_doctors_table)
+        create_table(conn, sql_create_appointments_table)
+        conn.close()
+    else:
+        print("Error! cannot create the database connection.")
+
+# Run setup first
+setup_database()
+import sqlite3
+
+# --- Database Connection and Setup (from Part A) should be here ---
+
+# Function to add a new patient
+def add_patient(conn, name, age, gender, contact):
+    sql = ''' INSERT INTO patients(name, age, gender, contact)
+              VALUES(?,?,?,?) '''
+    cur = conn.cursor()
+    cur.execute(sql, (name, age, gender, contact))
+    conn.commit()
+    print("✅ Patient added successfully!")
+    return cur.lastrowid
+
+# Function to add a new doctor
+def add_doctor(conn, name, specialization, contact):
+    sql = ''' INSERT INTO doctors(name, specialization, contact)
+              VALUES(?,?,?) '''
+    cur = conn.cursor()
+    cur.execute(sql, (name, specialization, contact))
+    conn.commit()
+    print("✅ Doctor added successfully!")
+    return cur.lastrowid
+
+# Function to book an appointment
+def book_appointment(conn, patient_id, doctor_id, date, reason):
+    sql = ''' INSERT INTO appointments(patient_id, doctor_id, appointment_date, reason)
+              VALUES(?,?,?,?) '''
+    cur = conn.cursor()
+    cur.execute(sql, (patient_id, doctor_id, date, reason))
+    conn.commit()
+    print("✅ Appointment booked successfully!")
+    return cur.lastrowid
+
+# Function to view all patients
+def view_patients(conn):
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM patients")
+    rows = cur.fetchall()
+    print("\n--- 🧑 Patients ---")
+    for row in rows:
+        print(f"ID: {row[0]}, Name: {row[1]}, Age: {row[2]}, Gender: {row[3]}, Contact: {row[4]}")
+
+# Function to view all doctors
+def view_doctors(conn):
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM doctors")
+    rows = cur.fetchall()
+    print("\n--- 🧑‍⚕️ Doctors ---")
+    for row in rows:
+        print(f"ID: {row[0]}, Name: {row[1]}, Specialization: {row[2]}, Contact: {row[3]}")
+
+# Function to view all appointments
+def view_appointments(conn):
+    cur = conn.cursor()
+    # Using a JOIN to get names instead of just IDs
+    sql = """ SELECT a.appointment_id, p.name, d.name, a.appointment_date, a.reason
+              FROM appointments a
+              JOIN patients p ON a.patient_id = p.patient_id
+              JOIN doctors d ON a.doctor_id = d.doctor_id """
+    cur.execute(sql)
+    rows = cur.fetchall()
+    print("\n--- 🗓️ Appointments ---")
+    for row in rows:
+        print(f"ID: {row[0]}, Patient: {row[1]}, Doctor: {row[2]}, Date: {row[3]}, Reason: {row[4]}")
+# --- All previous code (Setup and Functions) should be here ---
+
+def main():
+    database = "hospital.db"
+    conn = create_connection(database)
+
+    if conn is None:
+        return
+
+    while True:
+        print("\n===== Hospital Management System =====")
+        print("1. Add Patient")
+        print("2. Add Doctor")
+        print("3. Book Appointment")
+        print("4. View Patients")
+        print("5. View Doctors")
+        print("6. View Appointments")
+        print("7. Exit")
+        choice = input("Enter your choice (1-7): ")
+
+        if choice == '1':
+            name = input("Enter patient name: ")
+            age = int(input("Enter patient age: "))
+            gender = input("Enter patient gender: ")
+            contact = input("Enter patient contact: ")
+            add_patient(conn, name, age, gender, contact)
+        
+        elif choice == '2':
+            name = input("Enter doctor name: ")
+            specialization = input("Enter doctor specialization: ")
+            contact = input("Enter doctor contact: ")
+            add_doctor(conn, name, specialization, contact)
+
+        elif choice == '3':
+            view_patients(conn)
+            patient_id = int(input("Enter patient ID for appointment: "))
+            view_doctors(conn)
+            doctor_id = int(input("Enter doctor ID for appointment: "))
+            date = input("Enter appointment date (YYYY-MM-DD): ")
+            reason = input("Enter reason for appointment: ")
+            book_appointment(conn, patient_id, doctor_id, date, reason)
+
+        elif choice == '4':
+            view_patients(conn)
+
+        elif choice == '5':
+            view_doctors(conn)
+
+        elif choice == '6':
+            view_appointments(conn)
+
+        elif choice == '7':
+            print("👋 Exiting the system. Goodbye!")
+            break
+            
+        else:
+            print("❌ Invalid choice. Please select a valid option.")
+
+    if conn:
+        conn.close()
+
+# To run the application
+if __name__ == '__main__':
+    setup_database() # Ensure tables are created before running main app
+    main()
